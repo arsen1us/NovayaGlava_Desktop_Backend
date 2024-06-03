@@ -82,7 +82,7 @@ namespace NovayaGlava_Desktop_Backend.Controllers
             if (user == null)
                 return BadRequest("Такого пользователя нет в базе данных, либо вы ввели неверный логин или пароль");
 
-            string jwtToken = _jwtTokenService.GenerateJwtToken(user);
+            string jwtToken = "Bearer" + _jwtTokenService.GenerateJwtToken(user);
             string refreshToken = _jwtTokenService.GenerateRefreshToken();
             UserTokenModel userToken = new UserTokenModel(user._id, jwtToken, refreshToken);
 

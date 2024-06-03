@@ -9,6 +9,8 @@ using NovayaGlava_Desktop_Backend.Models;
 
 namespace NovayaGlava_Desktop_Backend.Controllers
 {
+    [ApiController]
+    [Route("/api/content")]
     public class ContentController : Controller
     {
         IMongoClient _mongoClient;

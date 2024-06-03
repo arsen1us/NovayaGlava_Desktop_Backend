@@ -11,6 +11,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 
 namespace NovayaGlava_Desktop_Backend.Controllers
 {
@@ -33,6 +34,13 @@ namespace NovayaGlava_Desktop_Backend.Controllers
             _refreshTokenService = refreshTokenService;
             _userService = userService;
             _jwtTokenService = jwtTokenService;
+        }
+
+        [Authorize]
+        [HttpGet("check-authorization")]
+        public IActionResult CheckAuthorization()
+        {
+            return Ok();
         }
 
         [HttpPost("refresh")]
@@ -86,6 +94,8 @@ namespace NovayaGlava_Desktop_Backend.Controllers
 
             return principal;
         }
+
+
 
     }
 }

@@ -12,7 +12,7 @@ namespace NovayaGlava_Desktop_Backend.Controllers
     // localdb - добавление записей в коллекции локальной базы данных
 
     [ApiController]
-    [Route("api/chat")]
+    [Route("api/chats")]
     public class ChatController : Controller
     {
         private MongoClient _database;
@@ -22,10 +22,36 @@ namespace NovayaGlava_Desktop_Backend.Controllers
 
         public ChatController(MongoClient database)
         {
-            this._database = database;
+            _database = database;
             _novayaGlavaDB = database.GetDatabase("NovayaGlava");
             _сhatsCollection = _novayaGlavaDB.GetCollection<ChatModel>("chats");
             _usersCollection = _novayaGlavaDB.GetCollection<UserModel>("users");
+        }
+
+        // Получить все чаты юзера по его id
+        // Url - api/chat/getChatsByUserId/localdb?userId={...}
+        [Authorize] // Как пример - (Policy = IdentityData.AdminUserPolicyName)
+        [HttpGet("get")]
+        public async Task<ActionResult> GetChatsById(string userId)
+        {
+            if (string.IsNullOrEmpty(userId))
+                return BadRequest("Не удалось получить список чатов. Параметр userId is null or Empty");
+
+            var chatFilter = Builders<ChatModel>.Filter.AnyEq(chat => chat.Members, userId);
+            using IAsyncCursor<ChatModel> chatsCursor = await _сhatsCollection.FindAsync(chatFilter);
+
+            List<ChatModel> chats = chatsCursor.ToList();
+            var selectedList = from chat in chats.ToList()
+                                    select new ChatUserModel
+                                    {
+                                        _id = chat._id,
+                                        Members = chat.Members,
+                                        LastMessageAt = chat.LastMessageAt,
+                                        __v = chat.__v,
+                                        CompanionId = chat.Members.Where(m => m != userId).First()
+                                    };
+
+            return Ok(selectedList.ToList());
         }
 
         // Создать чат
@@ -77,39 +103,7 @@ namespace NovayaGlava_Desktop_Backend.Controllers
             return true;
         }
 
-        // Получить все чаты юзера по его id
-        // Url - api/chat/getChatsByUserId/localdb?userId={...}
-        [Authorize] // Как пример - (Policy = IdentityData.AdminUserPolicyName)
-        [HttpGet("getChatsByUserId/localdb")]
-        public async Task<ActionResult> GetChatsById(string userId)
-        {
-            if (string.IsNullOrEmpty(userId))
-                return BadRequest("Параметр userId is null or Empty");
-
-            using IAsyncCursor<ChatModel> chatsCursor = await _сhatsCollection.FindAsync(ch => ch.Members.Contains(userId));
-            var filter = Builders<UserModel>.Filter.Empty;
-            using IAsyncCursor<UserModel> usersCursor = await _usersCollection.FindAsync(filter);
-
-            List<UserModel> users = usersCursor.ToList();
-            List<ChatModel> chats = chatsCursor.ToList();
-
-            var joinChatModel = from chat in chats
-                                    // Выбираю id собеседника для p2p чата
-                                join user in users on chat.Members.Where(id => id != userId).First() equals user._id
-                                select new ChatUserModel
-                                {
-                                    _id = chat._id,
-                                    Members = chat.Members,
-                                    LastMessageAt = chat.LastMessageAt,
-                                    __v = chat.__v,
-                                    CompanionId = user._id,
-                                    CompanionNickName = user.NickName,
-                                };
-
-            List<ChatUserModel> chatUsers = joinChatModel.ToList();
-            string jsonChatUsers = JsonConvert.SerializeObject(chatUsers);
-            return Ok(jsonChatUsers);
-        }
+        
     }
 }
 
