@@ -1,5 +1,6 @@
 ﻿using Amazon.Runtime.Internal.Util;
 using ClassLibForNovayaGlava_Desktop;
+using ClassLibForNovayaGlava_Desktop.UserModel;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Caching.Distributed;
 using Newtonsoft.Json;

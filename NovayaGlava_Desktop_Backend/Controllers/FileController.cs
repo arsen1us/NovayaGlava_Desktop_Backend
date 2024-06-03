@@ -1,4 +1,6 @@
 ﻿using ClassLibForNovayaGlava_Desktop;
+using ClassLibForNovayaGlava_Desktop.Comments;
+using ClassLibForNovayaGlava_Desktop.UserModel;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using Newtonsoft.Json;

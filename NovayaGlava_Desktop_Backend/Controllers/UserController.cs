@@ -1,4 +1,11 @@
 ﻿using ClassLibForNovayaGlava_Desktop;
+using ClassLibForNovayaGlava_Desktop.Comments;
+using ClassLibForNovayaGlava_Desktop.UserModel;
+using NovayaGlava_Desktop_Backend.Models;
+using NovayaGlava_Desktop_Backend.Services.RefreshTokenService;
+using NovayaGlava_Desktop_Backend.Services.UserService;
+using NovayaGlava_Desktop_Backend.Services.JwtTokenService;
+
 using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -11,151 +18,82 @@ using System.Text;
 using Newtonsoft.Json;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
-using NovayaGlava_Desktop_Backend.Models;
 
 namespace NovayaGlava_Desktop_Backend.Controllers
 {
     // Url - api/users/{действие}/localdb
     // localdb - добавление записей в коллекции локальной базы данных
 
-    [Route("api/users")]
     [ApiController]
+    [Route("/api")]
     public class UsersController : ControllerBase
     {
-        IAuthenticationService authenticationService;
-
-        IDistributedCache _cache;
-
         private MongoClient _database;
         IMongoDatabase _novayaGlavaDB;
         IMongoCollection<UserModel> _usersCollection;
 
+        IDistributedCache _cache;
+        IRefreshTokenService _refreshTokenService;
+        IUserService _userService;
+        IJwtTokenService _jwtTokenService;
+
         IDataProtector _dataProtector;
 
-        private const string _tokenSecret = "mysupersecret_secretsecretsecretkey!123";
-        private static readonly TimeSpan _tokenLifeTime = TimeSpan.FromMinutes(15);
-
-        public UsersController(MongoClient database,
-            IAuthenticationService authenticationService,
-            IDistributedCache cashe,
-            IDataProtectionProvider dataProtectionProvider)
+        public UsersController(MongoClient database, IDistributedCache cashe, IRefreshTokenService refreshTokenService, IUserService userService, IJwtTokenService jwtTokenService, IDataProtectionProvider dataProtectionProvider)
         {
-            this.authenticationService = authenticationService;
-
             _database = database;
             _novayaGlavaDB = _database.GetDatabase("NovayaGlava");
             _usersCollection = _novayaGlavaDB.GetCollection<UserModel>("users");
 
             _cache = cashe;
+            _refreshTokenService = refreshTokenService;
+            _jwtTokenService = jwtTokenService;
+            _userService = userService;
 
             _dataProtector = dataProtectionProvider.CreateProtector("purprose"); //Успешно создался объект для шифра данные для сеанса
         }
 
-        // Регистрация пользователя в локальной бд
-        // Url - api/users/registration/localdb
-        [HttpPost("registration/localdb")]
-        public async Task<IActionResult> RegistrationLocalDb([FromBody] string jsonUser)
+        // Регистрация пользователя
+        // Url - api/users/register
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] UserModel userModel)
         {
-            byte[] key = Encoding.UTF8.GetBytes(_tokenSecret);
-            JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
-            JwtTokenResponseBodyModel responseModel;
-            if (string.IsNullOrEmpty(jsonUser))
-            {
-                responseModel = new JwtTokenResponseBodyModel
-                {
-                    ok = false,
-                    token = string.Empty
-                };
-                return BadRequest(responseModel);
-            }
-            UserModel user = JsonConvert.DeserializeObject<UserModel>(jsonUser);
-            await _usersCollection.InsertOneAsync(user);
+            if (userModel is null || userModel.NickName is null || userModel.Password is null || userModel.Email is null)
+                return BadRequest("Не удалось зарегистрировать пользователя. userModel is null или userModel.NickName is null или userModel.Password is null или userModel.Email is null");
 
-            List<Claim> claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user._id),
-                new Claim(ClaimTypes.Name, user.NickName)
-            };
+            await _userService.AddAsync(userModel);
 
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.Add(_tokenLifeTime),
-                Issuer = "default_issuer",
-                Audience = "default_audience",
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256)
-            };
+            string jwtToken = "Bearer " + _jwtTokenService.GenerateJwtToken(userModel);
+            string refreshToken = _jwtTokenService.GenerateRefreshToken();
+            UserTokenModel token = new UserTokenModel(userModel._id, jwtToken, refreshToken);
 
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            var jwt = tokenHandler.WriteToken(token);
-
-            // Добавление хэдера в заголовок
-            HttpContext.Response.Headers.Add("Authorization", jwt);
             return Ok(token);
         }
 
-        // Аутентификация пользователя локальная бд
-        // Url - api/users/login/localdb
-        [HttpPost("login/localdb")]
-        public async Task<IActionResult> AuthenticationLocalDb([FromBody] string jsonUser)
+        // Аутентификация пользователя
+        // Url - api/users/authenticate
+        [HttpPost("authenticate")]
+        public async Task<IActionResult> Authenticate([FromBody] AuthUserModel userModel)
         {
-            // Получить секретный ключ в виде байтов
-            byte[] key = Encoding.UTF8.GetBytes(_tokenSecret);
-            JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
+            if (userModel == null || userModel.Login is null || userModel.Password is null)
+                return BadRequest("Не удалось выполнить запрос на аутентификацию. userModel is null или userModel.Login is null или userModel.Password is null");
 
-            JwtTokenResponseBodyModel responseModel;
-            if (string.IsNullOrEmpty(jsonUser))
-            {
-                responseModel = new JwtTokenResponseBodyModel
-                {
-                    ok = false,
-                    token = string.Empty
-                };
-            }
-            UserModelForAuthentication userModel = JsonConvert.DeserializeObject<UserModelForAuthentication>(jsonUser);
-            using IAsyncCursor<UserModel> cursor = await _usersCollection.FindAsync(u => u.NickName == userModel.Login && u.Password == userModel.Password);
-            UserModel user = cursor.ToList().First();
+            UserModel user = await _userService.GetUserByIdAndPasswordAsync(userModel);
             if (user == null)
-            {
-                responseModel = new JwtTokenResponseBodyModel
-                {
-                    ok = false,
-                    token = string.Empty
-                };
-                string jsonResponseModel = JsonConvert.SerializeObject(responseModel);
+                return BadRequest("Такого пользователя нет в базе данных, либо вы ввели неверный логин или пароль");
 
-                return BadRequest(jsonResponseModel);
-            }
+            string jwtToken = _jwtTokenService.GenerateJwtToken(user);
+            string refreshToken = _jwtTokenService.GenerateRefreshToken();
+            UserTokenModel userToken = new UserTokenModel(user._id, jwtToken, refreshToken);
 
-            List<Claim> claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user._id),
-                new Claim(ClaimTypes.Name, user.NickName)
-            };
-
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.Add(_tokenLifeTime),
-                Issuer = "default_issuer",
-                Audience = "default_audience",
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256)
-            };
-
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            var jwt = tokenHandler.WriteToken(token);
-
-            // Добавление хэдера в заголовок
-            HttpContext.Response.Headers.Add("Authorization", jwt);
-
-            return Ok(user._id);
+            return Ok(userToken);
         }
 
         // Метод для авторизации. Если не авторизован - 401, авторизован - 200
         // Url - api/users/authorize
         [Authorize]
-        [HttpPost("authorize")]
-        public async Task<IActionResult> Authorize()
+        [HttpPost("checkJwt")]
+        public async Task<IActionResult> Authenticate()
         {
             return Ok();
         }
@@ -180,12 +118,11 @@ namespace NovayaGlava_Desktop_Backend.Controllers
             if (string.IsNullOrEmpty(userId))
                 return BadRequest("userId переданный в теле запроса равен null");
 
-            using IAsyncCursor<UserModel> curson = await _usersCollection.FindAsync(u => u._id == userId);
-            UserModel user = curson.ToList().First();
-            if (user == null)
-                return NotFound("юзера с данным id нет в локальной базе данных");
-            string jsonUser = JsonConvert.SerializeObject(user);
-            return Ok(jsonUser);
+            UserModel user = await _userService.GetByIdAsync(userId);
+            if (user is null)
+                return BadRequest("пользователя с данным id нет в базу данных");
+
+            return Ok(user);
         }
 
         // Получить юзеров по айди из локальной бд
@@ -221,29 +158,6 @@ namespace NovayaGlava_Desktop_Backend.Controllers
             string jsonUsers = JsonConvert.SerializeObject(users);
             return Ok(jsonUsers);
         }
-
-        //пускай пока так будет
-        [HttpGet("getUserById{userId}")]
-        public async Task<ActionResult> GetUserById(string userId)
-        {
-            if (userId == null || userId == string.Empty)
-                return BadRequest("userId == null or userId is empty");
-
-            UserModel user = await GetUserFromCache(userId);
-            if (user == null)
-                return NotFound($"Пользователя с данным id [{userId}] не существует");
-
-            string jsonUser = JsonConvert.SerializeObject(user);
-            byte[] buffer = new byte[jsonUser.Length];
-            buffer = Encoding.UTF8.GetBytes(jsonUser);
-
-            //HttpContext.Response.Body.Read(buffer, 0, buffer.Length);
-
-            //По факту записывается в тело запроса
-            return Ok(jsonUser);
-        }
-
-
 
         // Это пока не работает
 

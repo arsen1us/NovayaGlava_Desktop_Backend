@@ -1,4 +1,3 @@
-
 using System;
 using System.Text;
 using System.Security.Claims;
@@ -16,6 +15,10 @@ using MongoDB.Bson;
 using NovayaGlava_Desktop_Backend.Identities;
 using NovayaGlava_Desktop_Backend.Hubs;
 using NovayaGlava_Desktop_Backend.Models;
+using NovayaGlava_Desktop_Backend.Services;
+using NovayaGlava_Desktop_Backend.Services.RefreshTokenService;
+using NovayaGlava_Desktop_Backend.Services.UserService;
+using NovayaGlava_Desktop_Backend.Services.JwtTokenService;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,6 +38,10 @@ builder.Services.AddDataProtection();
 
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
+
+builder.Services.AddTransient<IUserService, UserService>();
+builder.Services.AddTransient<IRefreshTokenService, RefreshTokenService>();
+builder.Services.AddTransient<IJwtTokenService, JwtTokenService>();
 
 builder.Services.AddAuthorization(options =>
 {
@@ -81,6 +88,7 @@ builder.Services.AddSession(options => // Настройки сессии
     options.Cookie.Name = ".AdventureWorks.Session"; // название кук
 });
 
+builder.WebHost.UseUrls("https://localhost:7245");
 
 var app = builder.Build();
 
@@ -130,5 +138,6 @@ app.MapGet("/Error", (context) =>
 //    StringBuilder sb = new StringBuilder();
 //    return context.Response.WriteAsJsonAsync(hubContext.Clients.ToJson());
 //});
+
 
 app.Run();
