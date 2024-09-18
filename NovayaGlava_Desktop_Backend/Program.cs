@@ -23,7 +23,8 @@ using NovayaGlava_Desktop_Backend.Services.JwtTokenService;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton(new MongoClient("mongodb://localhost:27017")); // Подключение базы данных
+var config = builder.Configuration;
+builder.Services.AddSingleton(new MongoClient(config["MongoDb:ConnectionString"])); // Подключение базы данных
 
 // Добавляю SignalR
 builder.Services.AddSignalR();

@@ -1,7 +1,4 @@
-﻿using ClassLibForNovayaGlava_Desktop;
-using ClassLibForNovayaGlava_Desktop.Comments;
-using ClassLibForNovayaGlava_Desktop.UserModel;
-using NovayaGlava_Desktop_Backend.Models;
+﻿using NovayaGlava_Desktop_Backend.Models;
 using NovayaGlava_Desktop_Backend.Services.RefreshTokenService;
 using NovayaGlava_Desktop_Backend.Services.UserService;
 using NovayaGlava_Desktop_Backend.Services.JwtTokenService;
@@ -28,29 +25,33 @@ namespace NovayaGlava_Desktop_Backend.Controllers
     [Route("/api")]
     public class UsersController : ControllerBase
     {
+        IConfiguration _config;
         private MongoClient _database;
-        IMongoDatabase _novayaGlavaDB;
         IMongoCollection<UserModel> _usersCollection;
-
         IDistributedCache _cache;
         IRefreshTokenService _refreshTokenService;
         IUserService _userService;
         IJwtTokenService _jwtTokenService;
-
+        //Объект для шифра данныx для сеанса
         IDataProtector _dataProtector;
 
-        public UsersController(MongoClient database, IDistributedCache cashe, IRefreshTokenService refreshTokenService, IUserService userService, IJwtTokenService jwtTokenService, IDataProtectionProvider dataProtectionProvider)
+        public UsersController(
+            IConfiguration config,
+            MongoClient database, 
+            IDistributedCache cache, 
+            IRefreshTokenService refreshTokenService, 
+            IUserService userService, 
+            IJwtTokenService jwtTokenService, 
+            IDataProtectionProvider dataProtectionProvider)
         {
+            _config = config;
             _database = database;
-            _novayaGlavaDB = _database.GetDatabase("NovayaGlava");
-            _usersCollection = _novayaGlavaDB.GetCollection<UserModel>("users");
-
-            _cache = cashe;
+            _usersCollection = _database.GetDatabase(_config["MongoDb:DatabaseName"]).GetCollection<UserModel>("users");
+            _cache = cache;
             _refreshTokenService = refreshTokenService;
             _jwtTokenService = jwtTokenService;
             _userService = userService;
-
-            _dataProtector = dataProtectionProvider.CreateProtector("purprose"); //Успешно создался объект для шифра данные для сеанса
+            _dataProtector = dataProtectionProvider.CreateProtector("purprose");
         }
 
         // Регистрация пользователя
@@ -60,20 +61,27 @@ namespace NovayaGlava_Desktop_Backend.Controllers
         {
             if (userModel is null || userModel.NickName is null || userModel.Password is null || userModel.Email is null)
                 return BadRequest("Не удалось зарегистрировать пользователя. userModel is null или userModel.NickName is null или userModel.Password is null или userModel.Email is null");
+            try
+            {
+                await _userService.InsertOneAsync(userModel);
 
-            await _userService.AddAsync(userModel);
+                string jwtToken = "Bearer " + _jwtTokenService.GenerateJwtToken(userModel);
+                string refreshToken = _jwtTokenService.GenerateRefreshToken();
+                UserTokenModel token = new UserTokenModel(userModel._id, jwtToken, refreshToken);
 
-            string jwtToken = "Bearer " + _jwtTokenService.GenerateJwtToken(userModel);
-            string refreshToken = _jwtTokenService.GenerateRefreshToken();
-            UserTokenModel token = new UserTokenModel(userModel._id, jwtToken, refreshToken);
-
-            return Ok(token);
+                return Ok(token);
+            }
+            catch (Exception ex)
+            {
+                // logging
+                throw new Exception($"{ex.Message}");
+            }
         }
 
         // Аутентификация пользователя
         // Url - api/users/authenticate
         [HttpPost("authenticate")]
-        public async Task<IActionResult> Authenticate([FromBody] AuthUserModel userModel)
+        public async Task<IActionResult> Authenticate([FromBody] UserModelAuth userModel)
         {
             if (userModel == null || userModel.Login is null || userModel.Password is null)
                 return BadRequest("Не удалось выполнить запрос на аутентификацию. userModel is null или userModel.Login is null или userModel.Password is null");

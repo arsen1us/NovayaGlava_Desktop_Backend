@@ -1,11 +1,9 @@
-﻿using ClassLibForNovayaGlava_Desktop;
-using ClassLibForNovayaGlava_Desktop.Comments;
-using ClassLibForNovayaGlava_Desktop.UserModel;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Newtonsoft.Json;
 using NovayaGlava_Desktop_Backend.Models;
+using NovayaGlava_Desktop_Backend.Services.UserService;
 
 namespace NovayaGlava_Desktop_Backend.Controllers
 {
@@ -67,7 +65,7 @@ namespace NovayaGlava_Desktop_Backend.Controllers
                         {"as", "Post" }
                     })
                 };
-                List<UserPostModel> result = await _usersCollection.Aggregate<UserPostModel>(pipeline).ToListAsync();
+                List<UserModelPost> result = await _usersCollection.Aggregate<UserModelPost>(pipeline).ToListAsync();
                 
 
                 if (posts.Count == 0 || posts is null)

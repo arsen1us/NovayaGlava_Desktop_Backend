@@ -1,5 +1,4 @@
-﻿using ClassLibForNovayaGlava_Desktop.UserModel;
-using MongoDB.Driver;
+﻿using MongoDB.Driver;
 
 namespace NovayaGlava_Desktop_Backend.Services.UserService
 {
@@ -16,27 +15,52 @@ namespace NovayaGlava_Desktop_Backend.Services.UserService
             _usersCollection = _novayaGlavaDB.GetCollection<UserModel>("users");
         }
 
-        // Получить пользователя по _id
-        public async Task<UserModel> GetByIdAsync(string userId)
+        public async Task InsertOneAsync(UserModel user)
         {
-            if (string.IsNullOrEmpty(userId))
-                throw new Exception("Ошибка при получении userModel. userId is null or empty");
 
-            var filter = Builders<UserModel>.Filter.Eq(u => u._id, userId);
-            IAsyncCursor<UserModel> user = await _usersCollection.FindAsync(filter);
+        }
 
-            return user.FirstOrDefault();
+        public async Task InsertManyAsync(List<UserModel> users)
+        {
+
+        }
+
+        public async Task<List<UserModel>> FindAllAsync()
+        {
+            throw new Exception("Не готово");
+        }
+        // Получить пользователя по _id
+        public async Task<UserModel> FindByIdAsync(string userId)
+        {
+            try
+            {
+                var filter = Builders<UserModel>.Filter.Eq(u => u._id, userId);
+                IAsyncCursor<UserModel> user = await _usersCollection.FindAsync(filter);
+
+                return user.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Defails: {ex.Message}");
+            }
         }
 
         // Получить пользователя по _id и password
-        public async Task<UserModel> GetUserByIdAndPasswordAsync(AuthUserModel userModel)
+        public async Task<UserModel> FindByIdAndPasswordAsync(UserModelAuth userModel)
         {
-            var filterBuilder = Builders<UserModel>.Filter;
-            //var filter = filterBuilder.And(filterBuilder.Eq(u => u.NickName, userModel.Login), filterBuilder.Eq(u => u.Password, userModel.Password));
-            var filter = Builders<UserModel>.Filter.Eq(u => u.Email, userModel.Login);
-            using IAsyncCursor<UserModel> cursor = await _usersCollection.FindAsync(filter);
+            try
+            {
+                var filterBuilder = Builders<UserModel>.Filter;
+                //var filter = filterBuilder.And(filterBuilder.Eq(u => u.NickName, userModel.Login), filterBuilder.Eq(u => u.Password, userModel.Password));
+                var filter = Builders<UserModel>.Filter.Eq(u => u.Email, userModel.Login);
+                using IAsyncCursor<UserModel> cursor = await _usersCollection.FindAsync(filter);
 
-            return cursor.FirstOrDefault();
+                return cursor.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Defails: {ex.Message}");
+            }
         }
 
         // Добавить пользователя в базу данных
@@ -45,6 +69,11 @@ namespace NovayaGlava_Desktop_Backend.Services.UserService
             if (user is null)
                 throw new Exception("Ошибка при добавлении userModel. userModel is null");
 
+        }
+
+        public async Task UpdateAsync(string id, UserModel user)
+        {
+            throw new Exception("Не готово");
         }
 
         // Обновить NickName пользователя
@@ -59,19 +88,20 @@ namespace NovayaGlava_Desktop_Backend.Services.UserService
             throw new Exception("Не готово");
         }
 
-        // Удалить пользователя по _id из базы данных
-        public async Task RemoveByIdAsync(string userId)
-        { 
-            if (string.IsNullOrEmpty(userId))
-                throw new Exception("userId is null or empty");
-            var filter = Builders<UserModel>.Filter.Eq(u => u._id, userId);
-            try
+        // Удалить пользователя по id из базы данных
+        public async Task DeleteAsync(string id)
+        {
+            if (!string.IsNullOrEmpty(id))
             {
-                await _usersCollection.DeleteOneAsync(filter);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Не удалось удалить запись из коллекции users. Ошибка: {ex.Message}");
+                try
+                {
+                    var filter = Builders<UserModel>.Filter.Eq(u => u._id, id);
+                    await _usersCollection.DeleteOneAsync(filter);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Не удалось удалить запись из коллекции users. Ошибка: {ex.Message}");
+                }
             }
         }
     }
