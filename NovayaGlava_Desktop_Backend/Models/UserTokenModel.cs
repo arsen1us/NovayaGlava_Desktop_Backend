@@ -1,4 +1,4 @@
-﻿namespace NovayaGlava_Desktop_Backend.Services.UserService
+﻿namespace NovayaGlava_Desktop_Backend.Models
 {
     public class UserTokenModel
     {

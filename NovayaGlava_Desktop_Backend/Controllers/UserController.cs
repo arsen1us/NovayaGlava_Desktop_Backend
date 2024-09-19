@@ -1,7 +1,4 @@
 ﻿using NovayaGlava_Desktop_Backend.Models;
-using NovayaGlava_Desktop_Backend.Services.RefreshTokenService;
-using NovayaGlava_Desktop_Backend.Services.UserService;
-using NovayaGlava_Desktop_Backend.Services.JwtTokenService;
 
 using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication;
@@ -15,6 +12,7 @@ using System.Text;
 using Newtonsoft.Json;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
+using NovayaGlava_Desktop_Backend.Services;
 
 namespace NovayaGlava_Desktop_Backend.Controllers
 {

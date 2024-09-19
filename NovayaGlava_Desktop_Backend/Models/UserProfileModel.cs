@@ -2,7 +2,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace NovayaGlava_Desktop_Backend.Services.UserService
+namespace NovayaGlava_Desktop_Backend.Models
 {
     public class UserProfileModel : INotifyPropertyChanged
     {

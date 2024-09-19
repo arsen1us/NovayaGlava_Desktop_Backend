@@ -16,9 +16,6 @@ using NovayaGlava_Desktop_Backend.Identities;
 using NovayaGlava_Desktop_Backend.Hubs;
 using NovayaGlava_Desktop_Backend.Models;
 using NovayaGlava_Desktop_Backend.Services;
-using NovayaGlava_Desktop_Backend.Services.RefreshTokenService;
-using NovayaGlava_Desktop_Backend.Services.UserService;
-using NovayaGlava_Desktop_Backend.Services.JwtTokenService;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -42,7 +39,7 @@ builder.Services.AddControllers();
 
 builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IRefreshTokenService, RefreshTokenService>();
-builder.Services.AddTransient<IJwtTokenService, JwtTokenService>();
+builder.Services.AddTransient<IJwtTokenService, TokenService>();
 
 builder.Services.AddAuthorization(options =>
 {
@@ -90,6 +87,8 @@ builder.Services.AddSession(options => // Настройки сессии
 });
 
 builder.WebHost.UseUrls("https://localhost:7245");
+
+builder.Services.AddLogging();
 
 var app = builder.Build();
 

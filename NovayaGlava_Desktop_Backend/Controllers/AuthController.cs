@@ -1,9 +1,6 @@
 ﻿using ClassLibForNovayaGlava_Desktop;
 using ClassLibForNovayaGlava_Desktop.UserModel;
 using NovayaGlava_Desktop_Backend.Models;
-using NovayaGlava_Desktop_Backend.Services.JwtTokenService;
-using NovayaGlava_Desktop_Backend.Services.RefreshTokenService;
-using NovayaGlava_Desktop_Backend.Services.UserService;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -12,6 +9,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using NovayaGlava_Desktop_Backend.Services;
 
 namespace NovayaGlava_Desktop_Backend.Controllers
 {

@@ -3,7 +3,6 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using Newtonsoft.Json;
 using NovayaGlava_Desktop_Backend.Models;
-using NovayaGlava_Desktop_Backend.Services.UserService;
 
 namespace NovayaGlava_Desktop_Backend.Controllers
 {

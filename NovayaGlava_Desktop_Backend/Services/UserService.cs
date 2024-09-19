@@ -1,7 +1,12 @@
 ﻿using MongoDB.Driver;
+using NovayaGlava_Desktop_Backend.Models;
 
-namespace NovayaGlava_Desktop_Backend.Services.UserService
+namespace NovayaGlava_Desktop_Backend.Services
 {
+    public interface IUserService : IDatabaseService<UserModel>
+    {
+        Task<UserModel> FindByIdAndPasswordAsync(UserModelAuth userModel);
+    }
     public class UserService : IUserService
     {
         private IMongoClient _database;
@@ -17,17 +22,41 @@ namespace NovayaGlava_Desktop_Backend.Services.UserService
 
         public async Task InsertOneAsync(UserModel user)
         {
+            try
+            {
 
+            }
+            catch (Exception ex)
+            {
+                // logging
+                throw new Exception($"{ex.Message}");
+            }
         }
 
         public async Task InsertManyAsync(List<UserModel> users)
         {
+            try
+            {
 
+            }
+            catch (Exception ex)
+            {
+                // logging
+                throw new Exception($"{ex.Message}");
+            }
         }
 
         public async Task<List<UserModel>> FindAllAsync()
         {
-            throw new Exception("Не готово");
+            try
+            {
+                throw new Exception($"");
+            }
+            catch (Exception ex)
+            {
+                // logging
+                throw new Exception($"{ex.Message}");
+            }
         }
         // Получить пользователя по _id
         public async Task<UserModel> FindByIdAsync(string userId)
@@ -63,27 +92,7 @@ namespace NovayaGlava_Desktop_Backend.Services.UserService
             }
         }
 
-        // Добавить пользователя в базу данных
-        public async Task AddAsync(UserModel user)
-        {
-            if (user is null)
-                throw new Exception("Ошибка при добавлении userModel. userModel is null");
-
-        }
-
         public async Task UpdateAsync(string id, UserModel user)
-        {
-            throw new Exception("Не готово");
-        }
-
-        // Обновить NickName пользователя
-        public async Task UpdateNickNameByIdAsync(string userId, string newNickName)
-        {
-            throw new Exception("Не готово");
-        }
-
-        // Обновить пароль пользователя
-        public async Task UpdatePasswordByIdAsync(string userId, string newPassword)
         {
             throw new Exception("Не готово");
         }
