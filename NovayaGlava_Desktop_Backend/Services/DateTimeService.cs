@@ -4,7 +4,7 @@
     {
         public string GetDateTimeNow();
     }
-    public class DateTimeService
+    public class DateTimeService : IDateTimeService
     {
         ILogger<DateTimeService> _logger;
         public DateTimeService(ILogger<DateTimeService> logger)

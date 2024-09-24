@@ -23,7 +23,7 @@ namespace NovayaGlava_Desktop_Backend.Services
         IConfiguration _config;
         IUserService _userService;
         ILogger<TokenService> _logger;
-        IDateTimeService _dateTimeService;
+        IDateTimeService dateTimeService;
 
         public TokenService(
             IConfiguration config, 
@@ -34,7 +34,7 @@ namespace NovayaGlava_Desktop_Backend.Services
             _config = config;
             _userService = userService;
             _logger = logger;
-            _dateTimeService = dateTimeService;
+            this.dateTimeService = dateTimeService;
         }
 
         // Генерация jwt токена
@@ -114,7 +114,7 @@ namespace NovayaGlava_Desktop_Backend.Services
                     return null;
                 }
 
-                var user = await _userService.FindByIdAsync(_id);
+                var user = await _userService.FindAsync(_id);
 
                 _logger.LogInformation($"INFO: [{timestamp}] Refresh-token successfully updated");
                 return GenerateJwtToken(user);

@@ -1,6 +1,6 @@
 ﻿namespace NovayaGlava_Desktop_Backend.Models
 {
-    public class ChatMessageModel
+    public class MessageModel
     {
         public string _id { get; set; }
 

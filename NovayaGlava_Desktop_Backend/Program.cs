@@ -38,8 +38,8 @@ builder.Services.AddRazorPages();
 builder.Services.AddControllers();
 
 builder.Services.AddTransient<IUserService, UserService>();
-builder.Services.AddTransient<IRefreshTokenService, RefreshTokenService>();
-builder.Services.AddTransient<IJwtTokenService, TokenService>();
+builder.Services.AddTransient<ITokenService, TokenService>();
+builder.Services.AddTransient<IDateTimeService, DateTimeService>();
 
 builder.Services.AddAuthorization(options =>
 {

@@ -1,4 +1,4 @@
-﻿namespace NovayaGlava_Desktop_Backend.Comments
+﻿namespace NovayaGlava_Desktop_Backend.Models
 {
     public class CommentModel
     {

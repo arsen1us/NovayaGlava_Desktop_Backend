@@ -1,18 +1,12 @@
-﻿using NovayaGlava_Desktop_Backend.Models;
-
-using Microsoft.AspNetCore.Authentication.OAuth;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
-using MongoDB.Driver;
-using System.Security.Claims;
-using System.Text;
-using Newtonsoft.Json;
-using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
+using MongoDB.Driver;
+using Newtonsoft.Json;
+using NovayaGlava_Desktop_Backend.Models;
 using NovayaGlava_Desktop_Backend.Services;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace NovayaGlava_Desktop_Backend.Controllers
 {
@@ -20,54 +14,54 @@ namespace NovayaGlava_Desktop_Backend.Controllers
     // localdb - добавление записей в коллекции локальной базы данных
 
     [ApiController]
-    [Route("/api")]
+    [Route("/api/users")]
     public class UsersController : ControllerBase
     {
-        IConfiguration _config;
-        private MongoClient _database;
-        IMongoCollection<UserModel> _usersCollection;
-        IDistributedCache _cache;
-        IRefreshTokenService _refreshTokenService;
-        IUserService _userService;
-        IJwtTokenService _jwtTokenService;
-        //Объект для шифра данныx для сеанса
-        IDataProtector _dataProtector;
+        IConfiguration config;
+        private MongoClient client;
+        IDistributedCache cache;
+        IUserService userService;
+        ITokenService tokenService;
 
         public UsersController(
             IConfiguration config,
-            MongoClient database, 
-            IDistributedCache cache, 
-            IRefreshTokenService refreshTokenService, 
-            IUserService userService, 
-            IJwtTokenService jwtTokenService, 
-            IDataProtectionProvider dataProtectionProvider)
+            MongoClient database,
+            IDistributedCache cache,
+            IUserService userService,
+            TokenService tokenService)
         {
-            _config = config;
-            _database = database;
-            _usersCollection = _database.GetDatabase(_config["MongoDb:DatabaseName"]).GetCollection<UserModel>("users");
-            _cache = cache;
-            _refreshTokenService = refreshTokenService;
-            _jwtTokenService = jwtTokenService;
-            _userService = userService;
-            _dataProtector = dataProtectionProvider.CreateProtector("purprose");
+            this.config = config;
+            client = database;
+            this.cache = cache;
+            this.tokenService = tokenService;
+            this.userService = userService;
         }
-
         // Регистрация пользователя
-        // Url - api/users/register
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] UserModel userModel)
+        // POST: api/users/reg
+
+        [HttpPost("reg")]
+        public async Task<IActionResult> Register([FromBody] UserModel user)
         {
-            if (userModel is null || userModel.NickName is null || userModel.Password is null || userModel.Email is null)
+            if (user is null || user.NickName is null || user.Password is null || user.Email is null)
                 return BadRequest("Не удалось зарегистрировать пользователя. userModel is null или userModel.NickName is null или userModel.Password is null или userModel.Email is null");
             try
             {
-                await _userService.InsertOneAsync(userModel);
+                await userService.InsertOneAsync(user);
 
-                string jwtToken = "Bearer " + _jwtTokenService.GenerateJwtToken(userModel);
-                string refreshToken = _jwtTokenService.GenerateRefreshToken();
-                UserTokenModel token = new UserTokenModel(userModel._id, jwtToken, refreshToken);
+                string token = tokenService.GenerateJwtToken(user);
+                Response.Headers["Authorization"] = token;
 
-                return Ok(token);
+                string refreshToken = tokenService.GenerateRefreshToken();
+                var cookieOptions = new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = DateTime.UtcNow.AddHours(1)
+                };
+                Response.Cookies.Append("refresh", refreshToken, cookieOptions);
+
+                return Ok();
             }
             catch (Exception ex)
             {
@@ -75,90 +69,113 @@ namespace NovayaGlava_Desktop_Backend.Controllers
                 throw new Exception($"{ex.Message}");
             }
         }
-
         // Аутентификация пользователя
-        // Url - api/users/authenticate
-        [HttpPost("authenticate")]
+        // POST - api/users/auth
+
+        [HttpPost("auth")]
         public async Task<IActionResult> Authenticate([FromBody] UserModelAuth userModel)
         {
             if (userModel == null || userModel.Login is null || userModel.Password is null)
                 return BadRequest("Не удалось выполнить запрос на аутентификацию. userModel is null или userModel.Login is null или userModel.Password is null");
 
-            UserModel user = await _userService.GetUserByIdAndPasswordAsync(userModel);
-            if (user == null)
-                return BadRequest("Такого пользователя нет в базе данных, либо вы ввели неверный логин или пароль");
+            try
+            {
+                UserModel user = await userService.FindAsync(userModel);
+                if (user == null)
+                    return BadRequest("Такого пользователя нет в базе данных, либо вы ввели неверный логин или пароль");
 
-            string jwtToken = "Bearer" + _jwtTokenService.GenerateJwtToken(user);
-            string refreshToken = _jwtTokenService.GenerateRefreshToken();
-            UserTokenModel userToken = new UserTokenModel(user._id, jwtToken, refreshToken);
+                string token = tokenService.GenerateJwtToken(user);
+                Response.Headers["Authorization"] = token;
 
-            return Ok(userToken);
-        }
+                string refreshToken = tokenService.GenerateRefreshToken();
+                var cookieOptions = new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = DateTime.UtcNow.AddHours(1)
+                };
+                Response.Cookies.Append("refresh", refreshToken, cookieOptions);
 
-        // Метод для авторизации. Если не авторизован - 401, авторизован - 200
-        // Url - api/users/authorize
-        [Authorize]
-        [HttpPost("checkJwt")]
-        public async Task<IActionResult> Authenticate()
-        {
-            return Ok();
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"{ex.Message}");
+            }
         }
 
         // Получить всех юзеров из локальной бд
-        // Url - api/users/allUsers/localdb
-        [HttpGet("allUsers/localdb")]
-        public async Task<IActionResult> GetUsersListLocalDb()
+        // GET - api/users
+
+        [HttpGet]
+        public async Task<IActionResult> GetUsersAsync()
         {
-            using IAsyncCursor<UserModel> cursor = await _usersCollection.FindAsync(Builders<UserModel>.Filter.Empty);
-            List<UserModel> users = cursor.ToList();
-
-            string jsonUsers = JsonConvert.SerializeObject(users);
-            return Ok(jsonUsers);
-        }
-
-        // Получить юзера по айди из локальной бд
-        // Url - api/users/userById/localdb?userId={"..."}
-        [HttpGet("userById/localdb")]
-        public async Task<IActionResult> GetUserByIdLocalDb(string userId)
-        {
-            if (string.IsNullOrEmpty(userId))
-                return BadRequest("userId переданный в теле запроса равен null");
-
-            UserModel user = await _userService.GetByIdAsync(userId);
-            if (user is null)
-                return BadRequest("пользователя с данным id нет в базу данных");
-
-            return Ok(user);
-        }
-
-        // Получить юзеров по айди из локальной бд
-        // Url - api/users/usersById/getFriendsList/localdb?userId={"..."}
-        [HttpGet("getFriendsList/localdb")]
-        public async Task<ActionResult> GetFriendsListLocalDb(string userId)
-        {
-            if (string.IsNullOrEmpty(userId))
-                return BadRequest("Parametr userId is null or Empty");
-
-            using IAsyncCursor<UserModel> userCursor = await _usersCollection.FindAsync(u => u._id == userId);
-            UserModel user = userCursor.ToList().First();
-            if (user != null)
+            try
             {
-                using IAsyncCursor<UserModel> friendsListCursor = await _usersCollection.FindAsync(u => u.Friends.Contains(user._id));
-                string jsonFriendsList = JsonConvert.SerializeObject(friendsListCursor);
-                return Ok(jsonFriendsList);
+                List<UserModel> users = await userService.FindAsync();
+                return Ok(users);
             }
-            else
-                return NotFound($"Пользователя с id - [{userId}] не было найдено в локальной бд");
+            catch (Exception ex)
+            {
+                throw new Exception($"{ex.Message}");
+            }
         }
+        // Получить пользователя по id
+        // GET: api/users/{id}
 
-        // Поиск пользователей через строку поиска в локальной бд
-        // Url - api/users/searchFriends/localdb?input={"..."}
-        [HttpGet("searchFriends/localdb")]
-        public async Task<IActionResult> SelectUsersBySearchString(string input)
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetByIdAsync(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+                return BadRequest("userId переданный в теле запроса равен null");
+            try
+            {
+                UserModel user = await userService.FindAsync(id);
+                if (user is null)
+                    return BadRequest("пользователя с данным id нет в базу данных");
+
+                return Ok(user);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"{ex.Message}");
+            }
+        }
+        // Получить список друзей
+        // GET - api/users/friends/{id}
+
+        [HttpGet("friends/{id}")]
+        public async Task<ActionResult> GetFriendsAsync(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+                return BadRequest("Parametr userId is null or Empty");
+            try
+            {
+                UserModel user = await userService.FindAsync(id);
+                if (user != null)
+                {
+                    using IAsyncCursor<UserModel> friendsListCursor = await userService.FindAsync(u => u.Friends.Contains(user._id));
+                    string jsonFriendsList = JsonConvert.SerializeObject(friendsListCursor);
+                    return Ok(jsonFriendsList);
+                }
+                else
+                    return NotFound($"Пользователя с id - [{id}] не было найдено в локальной бд");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"{ex.Message}");
+            }
+        }
+        // Поиск пользователей
+        // Url - api/users/input/{input}
+
+        [HttpGet("input/{input}")]
+        public async Task<IActionResult> SearchAsync(string input)
         {
             if (string.IsNullOrEmpty(input))
                 return BadRequest("Строка ввода для поиска пользователей is null or empty");
-            using IAsyncCursor<UserModel> usersCursor = await _usersCollection.FindAsync(u => u.NickName.Contains(input));
+            using IAsyncCursor<UserModel> usersCursor = await userService.FindAsync(u => u.NickName.Contains(input));
             List<UserModel> users = usersCursor.ToList();
 
             string jsonUsers = JsonConvert.SerializeObject(users);
@@ -170,7 +187,7 @@ namespace NovayaGlava_Desktop_Backend.Controllers
         private async Task<UserModel> GetUserFromCache(string userId)
         {
             IAsyncCursor<UserModel> userCursor;
-            string jsonUser = await _cache.GetStringAsync(userId);
+            string jsonUser = await cache.GetStringAsync(userId);
 
             if (jsonUser == null)
             {
@@ -221,11 +238,12 @@ namespace NovayaGlava_Desktop_Backend.Controllers
             }
 
             string jsonString = JsonConvert.SerializeObject(user);
-            await _cache.SetStringAsync(user._id, jsonString, new DistributedCacheEntryOptions
+            await cache.SetStringAsync(user._id, jsonString, new DistributedCacheEntryOptions
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1)
             });
         }
+
 
         private bool ValidatePassword(string password)
         {

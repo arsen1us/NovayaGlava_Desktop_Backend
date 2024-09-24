@@ -3,9 +3,9 @@
     public interface IDatabaseService<T> where T : class
     {
         // Получить все записи
-        Task<List<T>> FindAllAsync();
+        Task<List<T>> FindAsync();
         // Получить запись по id 
-        Task<T> FindByIdAsync(string userId);
+        Task<T> FindAsync(string userId);
         // Вставить 1 запись
         Task InsertOneAsync(T obj);
         // Вставить несколько записей
@@ -18,7 +18,7 @@
 
     public class DatabaseService<T> : IDatabaseService<T> where T : class
     {
-        public async Task<List<T>> FindAllAsync()
+        public async Task<List<T>> FindAsync()
         {
             try
             {
@@ -30,7 +30,7 @@
             }
         }
         // Получить запись по id 
-        public async Task<T> FindByIdAsync(string userId)
+        public async Task<T> FindAsync(string userId)
         {
             try
             {

@@ -1,9 +1,9 @@
-﻿using ClassLibForNovayaGlava_Desktop.UserModel;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 using MongoDB.Driver;
 using System.Text;
 using MailKit;
+using NovayaGlava_Desktop_Backend.Models;
 
 namespace NovayaGlava_Desktop_Backend.Controllers
 {
@@ -12,14 +12,14 @@ namespace NovayaGlava_Desktop_Backend.Controllers
     public class EmailController : Controller
     {
         IDistributedCache _cache;
-        IMongoClient _database;
+        IMongoClient database;
         IMongoDatabase _novayaGlava;
         IMongoCollection<UserModel> _usersCollection;
 
         public EmailController(IDistributedCache cache, MongoClient database)
         {
-            _database = database;
-            _novayaGlava = _database.GetDatabase("NovayaGlava");
+            this.database = database;
+            _novayaGlava = this.database.GetDatabase("NovayaGlava");
             _usersCollection = _novayaGlava.GetCollection<UserModel>("users");
             _cache = cache;
         }
